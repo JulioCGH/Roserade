@@ -18,20 +18,14 @@ W=16;
 N=5;
 tasa_paquetes=0.0005;
 T=durDATA+durRTS+durCTS+DIFS+durACK+dur_miniranura*W+3*SIFS;
-Tc=T*(ranura_sleep+2);
+Tc=T*(ranura_sleep+2-I);
 ciclo=1;
 paquetes_descartados=0;
 paquetes_transmitidos=0;
 ranura=1;
 colisiones_red=0;
 paquete_recuperado=0;
-
-
-%Generacion de tiempo de arribo
-u=(1e6*rand)/1e6;
-nuevo_tiempo=-(1/tasa_paquetes)*log(1-u);
-t_arribo=t_sim+nuevo_tiempo;
-
+t_arribo=0;
 
 %Generamos los grados y nodos
 
@@ -39,14 +33,14 @@ grados=Grado;
 nodos=Nodo;
 buffer=zeros(1,K);
 
-Ranuras=['R' 'T' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S'];
+Ranuras=['R' 'T' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S']; %Ranuras para la calendarizacion consecutiva
 
-for i=1:I
+for i=1:I   %Añadimos los grados a la red
 grados.id=i;
 grados.ranuras=Ranuras;
 Grados_red(i)=grados;
 
-for j=1:N
+for j=1:N   %Añadimos los nodos a cada grado en la red
 nodos.id=j;
 nodos.buffer=buffer(1,:);
 Nodos_grado(j)=nodos;
@@ -60,13 +54,15 @@ end
 
 
 
-% Inicio del ciclo
-while ciclo < 50
+% Inicio de los ciclos
+
+while ciclo < 100
+
 %Generacion de paquetes cuando el ciclo sea 1 o t_arribo sea menor a t_sim
 
      while  t_arribo<t_sim ||ciclo==1
      tasa_paquetes=tasa_paquetes*N*I;    
-     grado_aleatorio=randi([1 I],1,1) %Seleccionamos grado y nodo aleatorio
+     grado_aleatorio=randi([1 I],1,1) %Seleccionamos numeros aleatorios para grado y nodo aleatorio
      nodo_aleatorio=randi([1 N],1,1)
 
      grado_seleccionado=Grados_red(grado_aleatorio); %Obtiene grado y nodo aleatorio de las clases creadas
@@ -102,7 +98,7 @@ while ciclo < 50
         t_arribo=t_sim+nuevo_tiempo; %Se genera un nuevo t_arribo
         end
 
-        if ciclo==1
+        if ciclo==1 %En el caso de se primer ciclo, genera paquete independientemiente de las condiciones  
         break;
         end
 
@@ -137,25 +133,23 @@ while ciclo < 50
             
         i=I;
         ranura_flag=true;
-        transmision_exitosa=false;
+        transmision_flag=false;
+        transmision_vacia=false;
 
-        while transmision_exitosa==false
+        
+
+
+        %
+        while transmision_flag==false
+        nodos_transmisores=[];
 
             while ranura_flag==true
 
-            if Grados_red(i).ranuras(ranura) =='S'  %Comprobamos si la ranura actual es de sleep o no
+         
 
-                if i==1
-                ranura=ranura+1;
+            if Grados_red(i).ranuras(ranura) =='T' % En caso de no ser ranura de sleep y es una transmision
 
-                i=I;
-                else
-                i=i-1;    
-                end
-
-            elseif Grados_red(i).ranuras(ranura) =='T' % En caso de no ser ranura de sleep y es una transmision
-
-                    nodos_transmisores=[];
+                    
         
                     for l=1:N %Verificacion de nodos y buffers que tengan paquetes que transmitir
                    
@@ -164,18 +158,25 @@ while ciclo < 50
                     nodos_transmisores=[nodos_transmisores Grados_red(i).nodos(l).id];   
                     ranura_flag=false;
                     break
-                  
                     end
                     end
                     end
 
 
-                    if length(nodos_transmisores)==0
+                    if isempty(nodos_transmisores)
                     if i==1    
-                    i=I;
+                    ranura=21;
+                    t_sim=t_sim+T+Tc;
+                    ciclo=ciclo+1;
+                    ranura_flag=false;
+                    transmision_vacia=true;
+                    transmision_flag=true;
+                    
+
                     else
                     i=i-1;
                     ranura=ranura+1;
+                    t_sim=t_sim+T;
                     end    
                     
                     
@@ -184,24 +185,17 @@ while ciclo < 50
                     
 
 
-            else %No es transmision ni sleep
-                if ranura==1
-                
-                ranura=ranura+1;
-                else
-                if i==1    
-                i=I;
-                else
-                i=i-1;    
-                end
-                end
-             
+            else %No es transmision 
+         
+            ranura=ranura+1;
+
             end
             end
 
         %Proceso de contención
 
       
+        if transmision_vacia==false
 
         contadores=[];
         nodos_contendientes=[];
@@ -246,18 +240,19 @@ while ciclo < 50
         t_sim=t_sim+T; 
         if i==1
         i=I;
+        ranura=21;
+        ciclo=ciclo+1;
+        t_sim=t_sim+Tc; 
+        transmision_flag=true;
         else
         i=i-1;
+        ranura=ranura+1;
+        ranura_flag=true;
         end
 
         
         
         else  %En el caso de solo tener un nodo 
-
-        transmision_exitosa=true;
-
-        end
-        end
 
         %Eliminamos paquete del buffer ganador
         
@@ -281,12 +276,12 @@ while ciclo < 50
              
              paquetes_transmitidos=paquetes_transmitidos+1;
              Grados_red(i).paquete_transmitido_grado=Grados_red(i).paquete_transmitido_grado+1;
-             t_sim=t_sim+T;
-             t_sim=t_sim+T*[20-I];
-             ranura=20;
+             t_sim=t_sim+T+Tc;
+            
+             ranura=21;
              ciclo=ciclo+1;
-             ranura=ranura+1;
              
+             transmision_flag=true;
 
         
              else 
@@ -303,14 +298,17 @@ while ciclo < 50
                  end 
              
              t_sim=t_sim+T;
-             ciclo=ciclo+1;
+             i=i-1;
              ranura=ranura+1;
-             
+             ranura_flag=true;
              
 
              end
 
-
+        end
+        end
+        end
+       
 
         end
  
