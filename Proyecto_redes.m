@@ -16,7 +16,7 @@ dur_miniranura=1e-3;
 t_sim=0;
 W=16;
 N=5;
-tasa_paquetes=0.0005;
+tasa_paquetes=0.05;
 T=durDATA+durRTS+durCTS+DIFS+durACK+dur_miniranura*W+3*SIFS;
 Tc=T*(ranura_sleep+2-I);
 ciclo=1;
@@ -56,12 +56,12 @@ end
 
 % Inicio de los ciclos
 
-while ciclo < 100
+while ciclo < 30000
 
 %Generacion de paquetes cuando el ciclo sea 1 o t_arribo sea menor a t_sim
 
      while  t_arribo<t_sim ||ciclo==1
-     tasa_paquetes=tasa_paquetes*N*I;    
+     tasa_paquetes2=tasa_paquetes*N*I;    
      grado_aleatorio=randi([1 I],1,1) %Seleccionamos numeros aleatorios para grado y nodo aleatorio
      nodo_aleatorio=randi([1 N],1,1)
 
@@ -86,7 +86,7 @@ while ciclo < 100
         nodo_seleccionado.buffer(lugar)=1;
         Grados_red(grado_aleatorio).nodos(nodo_aleatorio)=nodo_seleccionado;
         u=(1e6*rand)/1e6;
-        nuevo_tiempo=-(1/tasa_paquetes)*log(1-u);
+        nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
         t_arribo=t_sim+nuevo_tiempo; %Generamos nuevo t_arribo
    
         else %No hay espacio, se descarta el paquete
@@ -94,7 +94,7 @@ while ciclo < 100
         paquetes_descartados=paquetes_descartados+1;
         Grados_red(grado_aleatorio).paquete_perdido_grado=Grados_red(grado_aleatorio).paquete_perdido_grado+1;
         u=(1e6*rand)/1e6;
-        nuevo_tiempo=-(1/tasa_paquetes)*log(1-u);
+        nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
         t_arribo=t_sim+nuevo_tiempo; %Se genera un nuevo t_arribo
         end
 
@@ -226,15 +226,21 @@ while ciclo < 100
         paquetes_descartados=paquetes_descartados+length(nodos_contendientes);
 
             for n=1:length(nodos_contendientes)
-            buffer_eliminado=Grados_red(i).nodos(n).buffer;   
+            buffer_eliminado=Grados_red(i).nodos(nodos_contendientes(n)).buffer;   
                 
             for b=1:K
             if buffer_eliminado(b)~=0 %Eliminamos el paquete del buffer de los nodos
                buffer_eliminado(b)=0;
                break
             end
+             buffer_recorrido=[];
+
+             buffer_recorrido=[buffer_recorrido buffer_eliminado(2:K)];
+             buffer_recorrido=[buffer_recorrido 0];
+             Grados_red(i).nodos(nodos_contendientes(n)).buffer=buffer_recorrido;
             end
-            Grados_red(i).nodos(n).buffer=buffer_eliminado;
+           
+             
 
             end
         t_sim=t_sim+T; 
