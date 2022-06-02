@@ -27,6 +27,7 @@ colisiones_red=0;
 paquete_recuperado=0;
 t_arribo=0;
 
+
 %Generamos los grados y nodos
 
 grados=Grado;
@@ -56,7 +57,7 @@ end
 
 % Inicio de los ciclos
 
-while ciclo < 30000
+while ciclo < 300
 
 %Generacion de paquetes cuando el ciclo sea 1 o t_arribo sea menor a t_sim
 
@@ -68,14 +69,14 @@ while ciclo < 30000
      grado_seleccionado=Grados_red(grado_aleatorio); %Obtiene grado y nodo aleatorio de las clases creadas
      nodo_seleccionado=grado_seleccionado.nodos(nodo_aleatorio);
 
-     espacio=false;
+     espacio=false; %Variable booleana que verifica el espacio
      lugar=0;
 
         for i=1:length(nodo_seleccionado.buffer)
 
         if nodo_seleccionado.buffer(i)==0  %Comprobacion de buffer si esta lleno o hay espacio
         espacio=true;
-        lugar=i;
+        lugar=i; %obtiene el lugar donde encontre un espacio
         break
         end
      
@@ -87,7 +88,7 @@ while ciclo < 30000
         Grados_red(grado_aleatorio).nodos(nodo_aleatorio)=nodo_seleccionado;
         u=(1e6*rand)/1e6;
         nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
-        t_arribo=t_sim+nuevo_tiempo; %Generamos nuevo t_arribo
+        t_arribo=t_sim+nuevo_tiempo;    %Generamos nuevo t_arribo
    
         else %No hay espacio, se descarta el paquete
 
@@ -127,13 +128,13 @@ while ciclo < 30000
         end
             
 
-            if ciclo==1 || ranura>20 %Comienza la transmision desde la ranura 1
+            if ciclo==1 || ranura>20 %Comienza la transmision desde la ranura 1 cada vez que se complete un ciclo
             ranura=1;
             end
             
-        i=I;
+        i=I;  %Empezamos desde el grado mas alejado
         ranura_flag=true;
-        transmision_flag=false;
+        transmision_flag=false; %Variables booleanas para comprobar ranura y transmision 
         transmision_vacia=false;
 
         
@@ -147,7 +148,7 @@ while ciclo < 30000
 
          
 
-            if Grados_red(i).ranuras(ranura) =='T' % En caso de no ser ranura de sleep y es una transmision
+            if Grados_red(i).ranuras(ranura) =='T' % En caso de caer en una transmision
 
                     
         
@@ -155,25 +156,26 @@ while ciclo < 30000
                    
                     for t=1:K
                     if Grados_red(i).nodos(l).buffer(t)~=0
-                    nodos_transmisores=[nodos_transmisores Grados_red(i).nodos(l).id];   
-                    ranura_flag=false;
+                    nodos_transmisores=[nodos_transmisores Grados_red(i).nodos(l).id];   %Obtenemos el id de los nodos que tienen algo que transmitir
+                    ranura_flag=false;  %Salimos del ciclo de busqueda de ranura
                     break
                     end
                     end
                     end
 
 
-                    if isempty(nodos_transmisores)
-                    if i==1    
+                    if isempty(nodos_transmisores) %Si no encuentra nodos transmisores
+
+                    if i==1       %Si esta en el grado 1, completa el ciclo y aumenta el tiempo de la simulacion    
                     ranura=21;
                     t_sim=t_sim+T+Tc;
                     ciclo=ciclo+1;
                     ranura_flag=false;
-                    transmision_vacia=true;
-                    transmision_flag=true;
+                    transmision_vacia=true; %Variable booleana para saber si hay o no algo que transmitir
+                    transmision_flag=true; %Sale del ciclo
                     
 
-                    else
+                    else            %Pasamos al siguiente grado en su siguiente ranura
                     i=i-1;
                     ranura=ranura+1;
                     t_sim=t_sim+T;
@@ -206,7 +208,7 @@ while ciclo < 30000
         for l=1:length(nodos_transmisores)   %Asignamos una variable aleatoria a cada contador de cada nodo
         contador=randi([0 W-1],1,1);
         Grados_red(i).nodos(nodos_transmisores(l)).contador_backoff=contador;
-        contadores=[contadores Grados_red(i).nodos(nodos_transmisores(l)).contador_backoff];
+        contadores=[contadores Grados_red(i).nodos(nodos_transmisores(l)).contador_backoff]; %Ponemos el contador en cada nodo de un grado y los guardamos en un arreglo
         
         end
 
@@ -220,37 +222,41 @@ while ciclo < 30000
             end
 
         if length(nodos_contendientes)>1  %Si gano la contención mas de un nodo
-        colisiones_red=colisiones_red+1;  %Aumenta numero de colisiones
-        Grados_red(i).paquetes_colisionados=Grados_red(i).paquetes_colisionados+1;
+        colisiones_red=colisiones_red+1;  %Aumenta numero de colisiones de la red
+        Grados_red(i).colisiones_grado=Grados_red(i).colisiones_grado+1; %Aumenta numero de colisiones por grado
         Grados_red(i).paquete_perdido_grado=Grados_red(i).paquete_perdido_grado+length(nodos_contendientes); %Aumenta perdidas de paquetes por grado y en la red
         paquetes_descartados=paquetes_descartados+length(nodos_contendientes);
+        
+        
 
             for n=1:length(nodos_contendientes)
-            buffer_eliminado=Grados_red(i).nodos(nodos_contendientes(n)).buffer;   
+            buffer_eliminado=Grados_red(i).nodos(nodos_contendientes(n)).buffer;   %Obtenemos buffer de los nodos que participaron
                 
             for b=1:K
             if buffer_eliminado(b)~=0 %Eliminamos el paquete del buffer de los nodos
                buffer_eliminado(b)=0;
                break
             end
-             buffer_recorrido=[];
-
-             buffer_recorrido=[buffer_recorrido buffer_eliminado(2:K)];
-             buffer_recorrido=[buffer_recorrido 0];
-             Grados_red(i).nodos(nodos_contendientes(n)).buffer=buffer_recorrido;
+              
             end
-           
+            buffer_recorrido=[]; 
+
+            buffer_recorrido=[buffer_recorrido buffer_eliminado(2:K)];    %Recorremos los paquetes del nodo para mantener estructura FIFO
+            buffer_recorrido=[buffer_recorrido 0];
+            Grados_red(i).nodos(nodos_contendientes(n)).buffer=buffer_recorrido; 
              
-
             end
-        t_sim=t_sim+T; 
-        if i==1
+
+        t_sim=t_sim+T;  %Aumentamos el tiempo de la simulacion  
+
+        if i==1   %Si es grado uno, termina el ciclo y sumamos tiempo de ranuras de sleep
         i=I;
         ranura=21;
         ciclo=ciclo+1;
         t_sim=t_sim+Tc; 
         transmision_flag=true;
-        else
+
+        else  %Caso contrario, pasa al siguiente grado en busca de paquetes a transmitir
         i=i-1;
         ranura=ranura+1;
         ranura_flag=true;
@@ -274,10 +280,11 @@ while ciclo < 30000
 
         buffer_recorrido=[buffer_recorrido buffer_eliminado(2:K)];
         buffer_recorrido=[buffer_recorrido 0];
-        Grados_red(i).nodos(nodos_contendientes).buffer=buffer_recorrido;
+        Grados_red(i).nodos(nodos_contendientes).buffer=buffer_recorrido; %Recorremos los paquetes del nodo para mantener estructura FIFO
 
        
         %Comprobar si es grado 1 o cualquie otro
+             buffer_lleno=false;
              if i==1  %Condicion que hace cuando es grado 1 y transmite a nodo sink
              
              paquetes_transmitidos=paquetes_transmitidos+1;
@@ -296,27 +303,42 @@ while ciclo < 30000
                  if Grados_red(i-1).nodos(nodos_contendientes).buffer(t)==0
                  Grados_red(i-1).nodos(nodos_contendientes).buffer(t)=paquete_recuperado;
                  paquetes_transmitidos=paquetes_transmitidos+1;
+                 Grados_red(i).paquete_transmitido_grado=Grados_red(i).paquete_transmitido_grado+1;
                  break
                  else
-                 paquetes_descartados=paquetes_descartados+1;
-                 break
+                 buffer_lleno=true;
                  end
                  end 
-             
+
+
+
+             if buffer_lleno==true  %Si no encontro ningun espacio vacio, descarta todo el paquete y se aumenta tiempo de simulación
+             paquetes_descartados=paquetes_descartados+1;    
+             Grados_red(i).paquete_perdido_grado=Grados_red(i).paquete_perdido_grado+1;
              t_sim=t_sim+T;
              i=i-1;
              ranura=ranura+1;
              ranura_flag=true;
+
+
+
+             else  %Si agrego el paquete al nodo exitosamente, aumenta tiempo y pasa al siguiente nodo
+             t_sim=t_sim+T;
+             i=i-1;
+             ranura=ranura+1;
+             ranura_flag=true;
+             end
+           
              
 
              end
 
-        end
+        end   %Termina el proceso de contencion
         end
         end
        
 
-        end
+end %Comienza nuevo ciclo o termina si ya se llega a los 300000
  
         
 
