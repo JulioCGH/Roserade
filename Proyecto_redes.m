@@ -16,16 +16,19 @@ dur_miniranura=1e-3;
 t_sim=0;
 W=16;
 N=5;
-tasa_paquetes=0.05;
+tasa_paquetes=0.03;
 T=durDATA+durRTS+durCTS+DIFS+durACK+dur_miniranura*W+3*SIFS;
 Tc=T*(ranura_sleep+2-I);
 ciclo=1;
 paquetes_descartados=0;
 paquetes_transmitidos=0;
+paquetes_nodo_sink=0;
 ranura=1;
 colisiones_red=0;
 paquete_recuperado=0;
 t_arribo=0;
+total_paquetes=0;
+
 
 
 %Generamos los grados y nodos
@@ -57,14 +60,14 @@ end
 
 % Inicio de los ciclos
 
-while ciclo < 300
+while ciclo < 300000
 
 %Generacion de paquetes cuando el ciclo sea 1 o t_arribo sea menor a t_sim
 
      while  t_arribo<t_sim ||ciclo==1
      tasa_paquetes2=tasa_paquetes*N*I;    
-     grado_aleatorio=randi([1 I],1,1) %Seleccionamos numeros aleatorios para grado y nodo aleatorio
-     nodo_aleatorio=randi([1 N],1,1)
+     grado_aleatorio=randi([1 I],1,1); %Seleccionamos numeros aleatorios para grado y nodo aleatorio
+     nodo_aleatorio=randi([1 N],1,1);
 
      grado_seleccionado=Grados_red(grado_aleatorio); %Obtiene grado y nodo aleatorio de las clases creadas
      nodo_seleccionado=grado_seleccionado.nodos(nodo_aleatorio);
@@ -138,15 +141,21 @@ while ciclo < 300
         transmision_vacia=false;
 
         
-
+        
 
         %
         while transmision_flag==false
+
         nodos_transmisores=[];
+      
 
             while ranura_flag==true
 
-         
+            for n=1:N
+            if  Grados_red(i).nodos(n).contador_backoff~=0  
+            Grados_red(i).nodos(n).contador_backoff=W;
+            end
+            end
 
             if Grados_red(i).ranuras(ranura) =='T' % En caso de caer en una transmision
 
@@ -229,8 +238,11 @@ while ciclo < 300
         
         
 
+        
+
             for n=1:length(nodos_contendientes)
             buffer_eliminado=Grados_red(i).nodos(nodos_contendientes(n)).buffer;   %Obtenemos buffer de los nodos que participaron
+            
                 
             for b=1:K
             if buffer_eliminado(b)~=0 %Eliminamos el paquete del buffer de los nodos
@@ -288,6 +300,7 @@ while ciclo < 300
              if i==1  %Condicion que hace cuando es grado 1 y transmite a nodo sink
              
              paquetes_transmitidos=paquetes_transmitidos+1;
+             paquetes_nodo_sink=paquetes_nodo_sink+1;
              Grados_red(i).paquete_transmitido_grado=Grados_red(i).paquete_transmitido_grado+1;
              t_sim=t_sim+T+Tc;
             
