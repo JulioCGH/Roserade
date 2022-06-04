@@ -61,11 +61,11 @@ end
 
 % Inicio de los ciclos
 
-while ciclo < 10000
+while ciclo <300000
 
 %Generacion de paquetes cuando el ciclo sea 1 o t_arribo sea menor a t_sim
 
-     while  t_arribo<t_sim ||ciclo==1
+     while  t_arribo<=t_sim 
          contador_paquete = contador_paquete+1;
          tasa_paquetes2=tasa_paquetes*N*I;    
          grado_aleatorio=randi([1 I],1,1); %Seleccionamos numeros aleatorios para grado y nodo aleatorio
@@ -99,6 +99,7 @@ while ciclo < 10000
             u=(1e6*rand)/1e6;
             nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
             t_arribo=t_sim+nuevo_tiempo;    %Generamos nuevo t_arribo
+            
    
         else %No hay espacio, se descarta el paquete
             Paquetes_red(contador_paquete).estado = "D";
@@ -109,12 +110,8 @@ while ciclo < 10000
             nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
             t_arribo=t_sim+nuevo_tiempo; %Se genera un nuevo t_arribo
         end
-
-        if ciclo==1 %En el caso de se primer ciclo, genera paquete independientemiente de las condiciones  
-            break;
-        end
-
      end
+     
 
 
     
@@ -148,9 +145,9 @@ while ciclo < 10000
             while ranura_flag==true
 
                 for n=1:N
-                    if  Grados_red(i).nodos(n).contador_backoff~=0  
+                    
                         Grados_red(i).nodos(n).contador_backoff=W;
-                    end
+                    
                 end
 
                 if Grados_red(i).ranuras(ranura) =='T' % En caso de caer en una transmision
@@ -209,7 +206,7 @@ while ciclo < 10000
                 colisiones_red=colisiones_red+1;  %Aumenta numero de colisiones de la red
                 Grados_red(i).colisiones_grado=Grados_red(i).colisiones_grado+1; %Aumenta numero de colisiones por grado
                 Grados_red(i).paquete_perdido_grado=Grados_red(i).paquete_perdido_grado+length(nodos_contendientes); %Aumenta perdidas de paquetes por grado y en la red
-                paquetes_descartados=paquetes_descartados+length(nodos_contendientes);
+               
                 paquetes_colisionados=paquetes_colisionados + length(nodos_contendientes);
                 %Cambia el estado de los paquetes por pérdidos
                 Paquetes_red(contador_paquete).estado = "P";
@@ -311,7 +308,8 @@ while ciclo < 10000
                  end
             end   %Termina el proceso de contencion
         end
-    end
+        end
+     
 end %Comienza nuevo ciclo o termina si ya se llega a los 300000
  
         
