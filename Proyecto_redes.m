@@ -20,8 +20,10 @@ tasa_paquetes=0.03;
 T=durDATA+durRTS+durCTS+DIFS+durACK+dur_miniranura*W+3*SIFS;
 Tc=T*(ranura_sleep+2-I);
 ciclo=1;
+paquetes_colisionados=0;
 paquetes_descartados=0;
 paquetes_transmitidos=0;
+paquetes_perdidos=0;
 paquetes_nodo_sink=0;
 ranura=1;
 colisiones_red=0;
@@ -34,6 +36,10 @@ total_paquetes=0;
 grados=Grado;
 nodos=Nodo;
 buffer=zeros(1,K);
+
+%Array de Paquetes
+paquetes=Paquete;
+contador_paquete = 0; %Variable que nos ayuda a generar el núm del paquete
 
 Ranuras=['R' 'T' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S']; %Ranuras para la calendarizacion consecutiva
 
@@ -55,11 +61,12 @@ end
 
 % Inicio de los ciclos
 
-while ciclo < 300000
+while ciclo < 10000
 
 %Generacion de paquetes cuando el ciclo sea 1 o t_arribo sea menor a t_sim
 
      while  t_arribo<t_sim ||ciclo==1
+         contador_paquete = contador_paquete+1;
          tasa_paquetes2=tasa_paquetes*N*I;    
          grado_aleatorio=randi([1 I],1,1); %Seleccionamos numeros aleatorios para grado y nodo aleatorio
          nodo_aleatorio=randi([1 N],1,1);
@@ -69,6 +76,13 @@ while ciclo < 300000
     
          espacio=false; %Variable booleana que verifica el espacio
          lugar=0;
+
+         paquetes.grados = [];
+         %Creamos el paquete, le colocamos su id y lo guardamos en el arreglo
+         paquetes.id = contador_paquete;
+         paquetes.id_nodo = nodo_aleatorio; %Colocamos el id del nodo correspondiente
+         paquetes.t_generacion = t_sim; %Coloca el instante de tiempo en el que se generó el paquete
+         Paquetes_red(contador_paquete) = paquetes;
 
         for i=1:length(nodo_seleccionado.buffer)
             if nodo_seleccionado.buffer(i)==0  %Comprobacion de buffer si esta lleno o hay espacio
@@ -87,6 +101,7 @@ while ciclo < 300000
             t_arribo=t_sim+nuevo_tiempo;    %Generamos nuevo t_arribo
    
         else %No hay espacio, se descarta el paquete
+            Paquetes_red(contador_paquete).estado = "D";
 
             paquetes_descartados=paquetes_descartados+1;
             Grados_red(grado_aleatorio).paquete_perdido_grado=Grados_red(grado_aleatorio).paquete_perdido_grado+1;
@@ -195,6 +210,9 @@ while ciclo < 300000
                 Grados_red(i).colisiones_grado=Grados_red(i).colisiones_grado+1; %Aumenta numero de colisiones por grado
                 Grados_red(i).paquete_perdido_grado=Grados_red(i).paquete_perdido_grado+length(nodos_contendientes); %Aumenta perdidas de paquetes por grado y en la red
                 paquetes_descartados=paquetes_descartados+length(nodos_contendientes);
+                paquetes_colisionados=paquetes_colisionados + length(nodos_contendientes);
+                %Cambia el estado de los paquetes por pérdidos
+                Paquetes_red(contador_paquete).estado = "P";
              
                 for n=1:length(nodos_contendientes)
                     buffer_eliminado=Grados_red(i).nodos(nodos_contendientes(n)).buffer;   %Obtenemos buffer de los nodos que participaron
@@ -226,6 +244,10 @@ while ciclo < 300000
                     ranura_flag=true;
                 end
             else  %En el caso de solo tener un nodo 
+                
+                %Asignamos el nuevo grado al que llegó el paquete
+                Paquetes_red(contador_paquete).estado = "P";
+                Paquetes_red(contador_paquete).grados = [Paquetes_red(contador_paquete).grados i]; 
 
                 %Eliminamos paquete del buffer ganador
                 buffer_eliminado=Grados_red(i).nodos(nodos_contendientes).buffer;
@@ -246,7 +268,9 @@ while ciclo < 300000
                  %Comprobar si es grado 1 o cualquie otro
                  buffer_lleno=false;
                  if i==1  %Condicion que hace cuando es grado 1 y transmite a nodo sink
-                    paquetes_transmitidos=paquetes_transmitidos+1;
+                     Paquetes_red(contador_paquete).estado = "T"; 
+                     Paquetes_red(contador_paquete).t_llegada = t_sim;
+                     paquetes_transmitidos=paquetes_transmitidos+1;
                      paquetes_nodo_sink=paquetes_nodo_sink+1;
                      Grados_red(i).paquete_transmitido_grado=Grados_red(i).paquete_transmitido_grado+1;
                      t_sim=t_sim+T+Tc;
@@ -256,7 +280,7 @@ while ciclo < 300000
                      
                      transmision_flag=true;
                  else 
-                 
+                    %Coloca el paquete en el buffer del nodo del grado siguiente
                      for t=1:K
                          if Grados_red(i-1).nodos(nodos_contendientes).buffer(t)==0
                              Grados_red(i-1).nodos(nodos_contendientes).buffer(t)=paquete_recuperado;
@@ -270,6 +294,7 @@ while ciclo < 300000
 
 
                      if buffer_lleno==true  %Si no encontro ningun espacio vacio, descarta todo el paquete y se aumenta tiempo de simulación
+                         Paquetes_red(contador_paquete).estado = "D";
                          paquetes_descartados=paquetes_descartados+1;    
                          Grados_red(i).paquete_perdido_grado=Grados_red(i).paquete_perdido_grado+1;
                          t_sim=t_sim+T;
@@ -277,6 +302,7 @@ while ciclo < 300000
                          ranura=ranura+1;
                          ranura_flag=true;
                     else  %Si agrego el paquete al nodo exitosamente, aumenta tiempo y pasa al siguiente nodo
+                        Paquetes_red(contador_paquete).estado = "T"; 
                          t_sim=t_sim+T;
                          i=i-1;
                          ranura=ranura+1;
