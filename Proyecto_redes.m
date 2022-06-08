@@ -1,4 +1,4 @@
-clear all;
+clear
 close all;
 clc;
 
@@ -15,31 +15,54 @@ durACK=11e-3;
 durDATA=43e-3;
 dur_miniranura=1e-3;
 t_sim=0;
-W=16;
+W=64;
 N=5;
 tasa_paquetes=0.03;
 T=durDATA+durRTS+durCTS+DIFS+durACK+(dur_miniranura*W)+3*SIFS;
 Tc=T*(ranura_sleep+2-I);
 ciclo=1;
 paquetes_colisionados=0;
-paquetes_descartados=0;
-paquetes_transmitidos=0;
-paquetes_perdidos=0;
+perdidas_buffer_lleno=0;
+total_transmisiones=0;
 paquetes_nodo_sink=0;
 ranura=1;
 colisiones_red=0;
 paquete_recuperado=0;
 t_arribo=0;
 total_paquetes=0;
+buffer_recorrido=zeros(1,K);
+
+
+%Variables usadas para las graficas
+segundos=zeros(1,70);
+posicion=1;
+colisiones_tiempo=zeros(1,70);
+lleno_tiempo=zeros(1,70);
+perdidas_totales_tiempo=zeros(1,70);
+ciclos_transcurridos=zeros(1,30);
+paquetes_ciclo_transmitidos=zeros(1,30);
+paquetes_ciclo_totales=zeros(1,30);
+multiplo=1;
+iteracion_ciclos=1;
+
+for s=1:length(segundos)
+segundos(s)=10000*s;
+end
+
+for c=1:length(ciclos_transcurridos)
+ciclos_transcurridos(c)=10000*c;
+end
 
 
 %Generamos los grados y nodos
 grados=Grado;
 nodos=Nodo;
 buffer=zeros(1,K);
-
+Grados_red=grados.empty;
+Nodos_grado=nodos.empty;
 %Array de Paquetes
 paquetes=Paquete;
+Paquetes_red=paquetes.empty;
 contador_paquete = 0; %Variable que nos ayuda a generar el núm del paquete
 
 Ranuras=['R' 'T' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S' 'S']; %Ranuras para la calendarizacion consecutiva
@@ -79,12 +102,12 @@ end
 tasa_paquetes2=tasa_paquetes*N*I; 
 i=I;
 
-while ciclo <=30000
+while ciclo <=300000
 
 
 %Generacion de paquetes cuando el ciclo sea 1 o t_arribo sea menor a t_sim
 
-     while  t_arribo<=t_sim 
+     while  t_arribo<t_sim 
          contador_paquete = contador_paquete+1;
             
          grado_aleatorio=randi([1 I],1,1); %Seleccionamos numeros aleatorios para grado y nodo aleatorio
@@ -100,7 +123,7 @@ while ciclo <=30000
          %Creamos el paquete, le colocamos su id y lo guardamos en el arreglo
          paquetes.id = contador_paquete;
          paquetes.id_nodo = nodo_aleatorio; %Colocamos el id del nodo correspondiente
-         paquetes.t_generacion = t_sim; %Coloca el instante de tiempo en el que se generó el paquete
+         paquetes.t_arribo = t_arribo; %Coloca el instante de tiempo en el que se generó el paquete
          Paquetes_red(contador_paquete) = paquetes;
 
         for bu=1:length(nodo_seleccionado.buffer)
@@ -123,8 +146,8 @@ while ciclo <=30000
         else %No hay espacio, se descarta el paquete
             Paquetes_red(contador_paquete).estado = "D";
 
-            paquetes_descartados=paquetes_descartados+1;
-            Grados_red(grado_aleatorio).paquete_perdido_grado=Grados_red(grado_aleatorio).paquete_perdido_grado+1;
+            perdidas_buffer_lleno=perdidas_buffer_lleno+1;
+            Grados_red(grado_aleatorio).paquete_perdido_buffer=Grados_red(grado_aleatorio).paquete_perdido_buffer+1;
             u=(1e6*rand())/1e6;
             nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
             t_arribo=t_sim+nuevo_tiempo; %Se genera un nuevo t_arribo
@@ -213,22 +236,17 @@ while ciclo <=30000
             if length(nodos_contendientes)>1  %Si gano la contención mas de un nodo
                 colisiones_red=colisiones_red+1;  %Aumenta numero de colisiones de la red
                 Grados_red(i).colisiones_grado=Grados_red(i).colisiones_grado+1; %Aumenta numero de colisiones por grado
-                Grados_red(i).paquete_perdido_grado=Grados_red(i).paquete_perdido_grado+length(nodos_contendientes); %Aumenta perdidas de paquetes por grado y en la red
+                Grados_red(i).paquete_perdido_colision=Grados_red(i).paquete_perdido_colision+length(nodos_contendientes); %Aumenta perdidas de paquetes por grado y en la red
                
                 paquetes_colisionados=paquetes_colisionados + length(nodos_contendientes);
                 %Cambia el estado de los paquetes por pérdidos
-                Paquetes_red(contador_paquete).estado = "P";
+                Paquetes_red(contador_paquete).estado = "C";
              
                 for n=1:length(nodos_contendientes)
                     buffer_eliminado=Grados_red(i).nodos(nodos_contendientes(n)).buffer;   %Obtenemos buffer de los nodos que participaron
                
-                           buffer_eliminado(1)=0;
-                
-                  
-                    buffer_recorrido=[]; 
-        
-                    buffer_recorrido=[buffer_recorrido buffer_eliminado(2:K)];    %Recorremos los paquetes del nodo para mantener estructura FIFO
-                    buffer_recorrido=[buffer_recorrido 0];
+                    buffer_eliminado(1)=0;
+                    buffer_recorrido(1:14)=buffer_eliminado(2:K);    %Recorremos los paquetes del nodo para mantener estructura FIFO
                     Grados_red(i).nodos(nodos_contendientes(n)).buffer=buffer_recorrido; 
                 end
 
@@ -260,10 +278,8 @@ while ciclo <=30000
                        break
                     end
                 end
-                buffer_recorrido=[];
-        
-                buffer_recorrido=[buffer_recorrido buffer_eliminado(2:K)];
-                buffer_recorrido=[buffer_recorrido 0];
+               
+                buffer_recorrido(1:14)=buffer_eliminado(2:K);
                 Grados_red(i).nodos(nodos_contendientes).buffer=buffer_recorrido; %Recorremos los paquetes del nodo para mantener estructura FIFO
 
        
@@ -271,12 +287,12 @@ while ciclo <=30000
                  
                  if i==1  %Condicion que hace cuando es grado 1 y transmite a nodo sink
                      Paquetes_red(contador_paquete).estado = "T"; 
-                     Paquetes_red(contador_paquete).t_llegada = t_sim;
-                     paquetes_transmitidos=paquetes_transmitidos+1;
+    
+                     total_transmisiones=total_transmisiones+1;
                      paquetes_nodo_sink=paquetes_nodo_sink+1;
                      Grados_red(i).paquete_transmitido_grado=Grados_red(i).paquete_transmitido_grado+1;
                      t_sim=t_sim+T+Tc;
-                    
+                     Paquetes_red(contador_paquete).t_llegada = t_sim;
                      ranura=1;
                      ciclo=ciclo+1;
                      i=I;
@@ -288,7 +304,7 @@ while ciclo <=30000
                      for t=1:K
                          if Grados_red(i-1).nodos(nodos_contendientes).buffer(t)==0
                              Grados_red(i-1).nodos(nodos_contendientes).buffer(t)=paquete_recuperado;
-                             paquetes_transmitidos=paquetes_transmitidos+1;
+                             total_transmisiones=total_transmisiones+1;
                              Grados_red(i).paquete_transmitido_grado=Grados_red(i).paquete_transmitido_grado+1;
                              buffer_lleno=false;
                          break
@@ -302,9 +318,9 @@ while ciclo <=30000
 
                      if buffer_lleno==true  %Si no encontro ningun espacio vacio, descarta todo el paquete y se aumenta tiempo de simulación
                          Paquetes_red(contador_paquete).estado = "D";
-                         paquetes_descartados=paquetes_descartados+1;    
+                         perdidas_buffer_lleno=perdidas_buffer_lleno+1;    
                          
-                         Grados_red(i).paquete_perdido_grado=Grados_red(i).paquete_perdido_grado+1;
+                         Grados_red(i).paquete_perdido_buffer=Grados_red(i).paquete_perdido_buffer+1;
                          t_sim=t_sim+T;
                          i=i-1;
                          ranura=ranura+1;
@@ -319,12 +335,144 @@ while ciclo <=30000
                  end
             end   %Termina el proceso de contencion
         end
-        end
+
+if posicion<70
+if t_sim>=segundos(posicion) && t_sim<segundos(posicion+1)
+colisiones_tiempo(posicion)=paquetes_colisionados;
+lleno_tiempo(posicion)=perdidas_buffer_lleno;
+perdidas_totales_tiempo(posicion)=perdidas_buffer_lleno+paquetes_colisionados;
+segundos(posicion)=t_sim;
+posicion=posicion+1;
+end
+elseif posicion==70
+colisiones_tiempo(posicion)=paquetes_colisionados;
+lleno_tiempo(posicion)=perdidas_buffer_lleno;
+perdidas_totales_tiempo(posicion)=perdidas_buffer_lleno+paquetes_colisionados;
+segundos(posicion)=t_sim;
+posicion=posicion+1;   
+end
+
+if iteracion_ciclos<=30
+if ciclo==ciclos_transcurridos(iteracion_ciclos)
+paquetes_ciclo_transmitidos(iteracion_ciclos)=paquetes_nodo_sink;
+paquetes_ciclo_totales(iteracion_ciclos)=contador_paquete;
+iteracion_ciclos=iteracion_ciclos+1;    
+end
+
+end
+
+
+end
+
+
+
+
      
  %Comienza nuevo ciclo o termina si ya se llega a los 300000
  
-        
 
+
+%Graficas de la simulación
+
+figure(1)
+plot(segundos,colisiones_tiempo,':dm');
+title("Grafica de paquetes perdidos por colisiones vs tiempo(segundos)");
+xlabel('Segundos transcurridos');
+ylabel("Paquetes perdidos por colisiones con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+
+figure(2)
+plot(segundos,lleno_tiempo,':db');
+title("Grafica de paquetes perdidos por buffer lleno vs tiempo(segundos)");
+xlabel('Segundos transcurridos');
+ylabel("Paquetes perdidos por buffer llenos con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+
+figure(3)
+plot(segundos,perdidas_totales_tiempo,':dr');
+title("Grafica de paquetes perdidos totales vs tiempo(segundos)");
+xlabel('Segundos transcurridos');
+ylabel("Paquetes perdidos totales con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+
+figure(4)
+plot(ciclos_transcurridos,paquetes_ciclo_transmitidos,':pb',ciclos_transcurridos,paquetes_ciclo_totales,':dr');
+title("Troughput (Paquetes transmitidos vs paquetes totales por ciclo)");
+xlabel('Ciclos transcurridos');
+ylabel("Paquetes W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+legend('Paquetes transmitidos','Paquetes totales')
+
+
+% arreglo_colisiones=zeros(1,7);
+% arreglo_buffer_lleno=zeros(1,7);
+% arreglo_perdidas_totales=zeros(1,7);
+% arreglo_throughput=zeros(1,7);
+% 
+% for g=1:7
+% arreglo_colisiones(g)=Grados_red(g).paquete_perdido_colision;
+% arreglo_buffer_lleno(g)=Grados_red(g).paquete_perdido_buffer;
+% arreglo_perdidas_totales(g)=arreglo_colisiones(g)+arreglo_buffer_lleno(g);
+% arreglo_throughput(g)=Grados_red(g).paquete_transmitido_grado;
+% end
+% 
+% 
+% 
+% %Perdidas por colisiones
+% figure(1)
+% 
+% b=bar(arreglo_colisiones,'blue');
+% xlabel('Grados')
+% ylabel("Paquetes perdidos por colisiones con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+% xtips1 = b(1).XEndPoints;
+% ytips1 = b(1).YEndPoints;
+% labels1 = string(b(1).YData);
+% text(xtips1,ytips1,labels1,'HorizontalAlignment','center',...
+%     'VerticalAlignment','bottom')
+% axis([0 8 0 1.1*max(abs(arreglo_colisiones))])
+% 
+% 
+% %Perdidas por buffer lleno
+% figure(2)
+% 
+% a=bar(arreglo_buffer_lleno,'m');
+% xlabel('Grados')
+% ylabel("Paquetes perdidos por buffer lleno con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+% xtips1 = a(1).XEndPoints;
+% ytips1 = a(1).YEndPoints;
+% labels1 = string(a(1).YData);
+% text(xtips1,ytips1,labels1,'HorizontalAlignment','center',...
+%     'VerticalAlignment','bottom')
+% axis([0 8 0 1.1*max(arreglo_buffer_lleno)+5])
+% 
+% %Perdidas totales
+% figure(3)
+% 
+% c=bar(arreglo_perdidas_totales,'red');
+% xlabel('Grados')
+% ylabel("Perdidas totales por grado con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+% xtips1 = c(1).XEndPoints;
+% ytips1 = c(1).YEndPoints;
+% labels1 = string(c(1).YData);
+% text(xtips1,ytips1,labels1,'HorizontalAlignment','center',...
+%     'VerticalAlignment','bottom')
+% axis([0 8 0 1.1*max(arreglo_perdidas_totales)])
+% 
+% 
+% %Troughput
+% 
+% figure(4)
+% 
+% d=bar(arreglo_throughput,'g');
+% xlabel('Grados')
+% ylabel("Troughput por grado con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+% xtips1 = d(1).XEndPoints;
+% ytips1 = d(1).YEndPoints;
+% labels1 = string(d(1).YData);
+% text(xtips1,ytips1,labels1,'HorizontalAlignment','center',...
+%     'VerticalAlignment','bottom')
+% axis([0 8 0 1.1*max(arreglo_throughput)])
+% 
+
+
+        
+perdidas_totales=perdidas_buffer_lleno+paquetes_colisionados;
 
         
 
