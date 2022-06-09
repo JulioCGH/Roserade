@@ -15,8 +15,8 @@ durACK=11e-3;
 durDATA=43e-3;
 dur_miniranura=1e-3;
 t_sim=0;
-W=32;
-N=20;
+W=16;
+N=5;
 tasa_paquetes=0.03;
 T=durDATA+durRTS+durCTS+DIFS+durACK+(dur_miniranura*W)+3*SIFS;
 Tc=T*(ranura_sleep+2-I);
@@ -58,11 +58,13 @@ end
 %Generamos los grados y nodos
 grados=Grado;
 nodos=Nodo;
+paquetes=Paquete;
+
 buffer=zeros(1,K);
 Grados_red=grados.empty;
 Nodos_grado=nodos.empty;
+
 %Array de Paquetes
-paquetes=Paquete;
 Paquetes_red=paquetes.empty;
 contador_paquete = 0; %Variable que nos ayuda a generar el núm del paquete
 
@@ -103,12 +105,18 @@ end
 tasa_paquetes2=tasa_paquetes*N*I; 
 i=I;
 
-while ciclo <=300000
+while ciclo <=300
 
 
 %Generacion de paquetes cuando el ciclo sea 1 o t_arribo sea menor a t_sim
 
-     while  t_arribo<t_sim 
+     while  t_arribo<=t_sim 
+
+      u=(1e6*rand())/1e6;
+      nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
+      t_arribo=t_sim+nuevo_tiempo;    %Generamos nuevo t_arribo
+            
+
          contador_paquete = contador_paquete+1;
             
          grado_aleatorio=randi([1 I],1,1); %Seleccionamos numeros aleatorios para grado y nodo aleatorio
@@ -141,19 +149,12 @@ while ciclo <=300000
 
             nodo_seleccionado.buffer(lugar)=contador_paquete;
             Grados_red(grado_aleatorio).nodos(nodo_aleatorio)=nodo_seleccionado;
-            u=(1e6*rand())/1e6;
-            nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
-            t_arribo=t_sim+nuevo_tiempo;    %Generamos nuevo t_arribo
-            
-   
+
         else %No hay espacio, se descarta el paquete
             Paquetes_red(contador_paquete).estado = "D";
 
             perdidas_buffer_lleno=perdidas_buffer_lleno+1;
             Grados_red(grado_aleatorio).paquete_perdido_buffer=Grados_red(grado_aleatorio).paquete_perdido_buffer+1;
-            u=(1e6*rand())/1e6;
-            nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
-            t_arribo=t_sim+nuevo_tiempo; %Se genera un nuevo t_arribo
         end
      end
      
