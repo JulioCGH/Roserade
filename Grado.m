@@ -8,6 +8,7 @@ classdef Grado
     paquete_perdido_colision=0
     paquete_transmitido_grado=0
     colisiones_grado=0
+    retardo_grado
     end
 
 end
