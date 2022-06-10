@@ -105,16 +105,14 @@ end
 tasa_paquetes2=tasa_paquetes*N*I; 
 i=I;
 
-while ciclo <=300
+while ciclo <=300000
 
 
 %Generacion de paquetes cuando el ciclo sea 1 o t_arribo sea menor a t_sim
 
      while  t_arribo<=t_sim 
 
-      u=(1e6*rand())/1e6;
-      nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
-      t_arribo=t_sim+nuevo_tiempo;    %Generamos nuevo t_arribo
+   
             
 
          contador_paquete = contador_paquete+1;
@@ -149,12 +147,18 @@ while ciclo <=300
 
             nodo_seleccionado.buffer(lugar)=contador_paquete;
             Grados_red(grado_aleatorio).nodos(nodo_aleatorio)=nodo_seleccionado;
+            u=(1e6*rand())/1e6;
+            nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
+            t_arribo=t_sim+nuevo_tiempo;    %Generamos nuevo t_arribo
 
         else %No hay espacio, se descarta el paquete
             Paquetes_red(contador_paquete).estado = "D";
 
             perdidas_buffer_lleno=perdidas_buffer_lleno+1;
             Grados_red(grado_aleatorio).paquete_perdido_buffer=Grados_red(grado_aleatorio).paquete_perdido_buffer+1;
+            u=(1e6*rand())/1e6;
+            nuevo_tiempo=-(1/tasa_paquetes2)*log(1-u);
+            t_arribo=t_sim+nuevo_tiempo;    %Generamos nuevo t_arribo
         end
      end
      
@@ -328,9 +332,11 @@ while ciclo <=300
 
                      if buffer_lleno==true  %Si no encontro ningun espacio vacio, descarta todo el paquete y se aumenta tiempo de simulación
                          Paquetes_red(paquete_recuperado).estado = "D";
+                         Paquetes_red(paquete_recuperado).id
                          perdidas_buffer_lleno=perdidas_buffer_lleno+1;    
                          
                          Grados_red(i).paquete_perdido_buffer=Grados_red(i).paquete_perdido_buffer+1;
+
                          t_sim=t_sim+T;
                          i=i-1;
                          ranura=ranura+1;
@@ -386,30 +392,51 @@ promedio_retardo=retardo_grados./paquetes_grado;
 
 %Graficas de la simulación
 
-figure(1)
-plot(segundos,colisiones_tiempo,':dm');
-title("Grafica de paquetes perdidos por colisiones vs tiempo(segundos)");
-xlabel('Segundos transcurridos');
-ylabel("Paquetes perdidos por colisiones con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+f=figure;
 
+figure(1);
+plot(segundos,colisiones_tiempo,':dm');
+title("Grafica de paquetes perdidos por colisiones vs tiempo(segundos) con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+xlabel('Segundos transcurridos');
+ylabel("Paquetes perdidos");
+f.Position(3:4) = [1280 720];
+% DirectoryPath ='E:\Escuela\Octavo semestre\Redes inteligentes\proyecto final\graficas\6';
+% whereToStore=fullfile(DirectoryPath,['Perdidas_colisiones.png']);
+% saveas(gcf, whereToStore);
+
+f=figure;
 figure(2)
 plot(segundos,lleno_tiempo,':db');
-title("Grafica de paquetes perdidos por buffer lleno vs tiempo(segundos)");
+title("Grafica de paquetes perdidos por buffer lleno vs tiempo(segundos) con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
 xlabel('Segundos transcurridos');
-ylabel("Paquetes perdidos por buffer llenos con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+ylabel("Paquetes perdidos");
+f.Position(3:4) = [1280 720];
+% DirectoryPath ='E:\Escuela\Octavo semestre\Redes inteligentes\proyecto final\graficas\6';
+% whereToStore=fullfile(DirectoryPath,['Perdidas_buffer.png']);
+% saveas(gcf, whereToStore);
 
+f=figure;
 figure(3)
 plot(segundos,perdidas_totales_tiempo,':dr');
-title("Grafica de paquetes perdidos totales vs tiempo(segundos)");
+title("Grafica de paquetes perdidos totales vs tiempo(segundos) con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
 xlabel('Segundos transcurridos');
-ylabel("Paquetes perdidos totales con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+ylabel("Paquetes perdidos");
+f.Position(3:4) = [1280 720];
+% DirectoryPath ='E:\Escuela\Octavo semestre\Redes inteligentes\proyecto final\graficas\6';
+% whereToStore=fullfile(DirectoryPath,['Perdidas_totales.png']);
+% saveas(gcf, whereToStore);
 
+f=figure;
 figure(4)
 plot(segundos,paquetes_ciclo_transmitidos,':pb',segundos,paquetes_ciclo_totales,':dr');
-title("Troughput (Paquetes transmitidos vs paquetes totales por tiempo en segundos)");
+title("Troughput (Paquetes transmitidos vs paquetes totales por tiempo en segundos) con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
 xlabel('Segundos transcurridos');
-ylabel("Paquetes W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
+ylabel("Numero de paquetes");
+f.Position(3:4) = [1280 720];
 legend('Paquetes transmitidos','Paquetes totales')
+% DirectoryPath ='E:\Escuela\Octavo semestre\Redes inteligentes\proyecto final\graficas\6';
+% whereToStore=fullfile(DirectoryPath,['Throughput.png']);
+% saveas(gcf, whereToStore);
 
 
 
@@ -431,56 +458,57 @@ end
 
 
 %Perdidas por colisiones
+f=figure;
 figure(5)
-b=bar(Probabilidad_perdida_colision,'blue');
+plot(Probabilidad_perdida_colision,':pm');
+title("Grafica de Probabilidad de Perdidas por colisiones por grado con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes)
 xlabel('Grados')
-ylabel("Probabilidad de paquetes perdidos por colisiones con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
-xtips1 = b(1).XEndPoints;
-ytips1 = b(1).YEndPoints;
-labels1 = string(b(1).YData);
-text(xtips1,ytips1,labels1,'HorizontalAlignment','center',...
-    'VerticalAlignment','bottom')
-axis([0 8 0 1.1*max(Probabilidad_perdida_colision)])
+ylabel("Probabilidad de perdida");
+f.Position(3:4) = [1280 720];
+axis([0 8 0 1.1*max(Probabilidad_perdida_colision)+.1])
+% DirectoryPath ='E:\Escuela\Octavo semestre\Redes inteligentes\proyecto final\graficas\6';
+% whereToStore=fullfile(DirectoryPath,['Probabilidad_colisiones.png']);
+% saveas(gcf, whereToStore);
 
 
 %Perdidas por buffer lleno
+f=figure;
 figure(6)
 
-a=bar(Probabilidad_perdida_buffer,'m');
+plot(Probabilidad_perdida_buffer,':pblue');
+title("Grafica de Probabilidad de Perdidas por buffer lleno por grado con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes)
 xlabel('Grados')
-ylabel("Porbabilidad de Paquetes perdidos por buffer lleno con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
-xtips1 = a(1).XEndPoints;
-ytips1 = a(1).YEndPoints;
-labels1 = string(a(1).YData);
-text(xtips1,ytips1,labels1,'HorizontalAlignment','center',...
-    'VerticalAlignment','bottom')
+ylabel("Probabilidad de perdida");
+f.Position(3:4) = [1280 720];
 axis([0 8 0 1.1*max(Probabilidad_perdida_buffer)+.1])
+% DirectoryPath ='E:\Escuela\Octavo semestre\Redes inteligentes\proyecto final\graficas\6';
+% whereToStore=fullfile(DirectoryPath,['Probabilidad_buffer.png']);
+% saveas(gcf, whereToStore);
 
 %Perdidas totales
+f=figure;
 figure(7)
-
-c=bar(Probabilidad_perdida_total,'red');
+plot(Probabilidad_perdida_total,':pred');
+title("Grafica de Probabilidad de Perdidas totales por grado con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes)
 xlabel('Grados')
-ylabel("Probabilidad de Perdidas totales por grado con valores W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
-xtips1 = c(1).XEndPoints;
-ytips1 = c(1).YEndPoints;
-labels1 = string(c(1).YData);
-text(xtips1,ytips1,labels1,'HorizontalAlignment','center',...
-    'VerticalAlignment','bottom')
-axis([0 8 0 1.1*max(Probabilidad_perdida_total)])
+ylabel("Probabilidad de perdida");
+f.Position(3:4) = [1280 720];
+axis([0 8 0 1.1*max(Probabilidad_perdida_total)+.1])
+% DirectoryPath ='E:\Escuela\Octavo semestre\Redes inteligentes\proyecto final\graficas\6';
+% whereToStore=fullfile(DirectoryPath,['Probabilidad_perdida_total.png']);
+% saveas(gcf, whereToStore);
 
-
+f=figure;
 figure(8)
-
-c=bar(promedio_retardo,'green');
+plot(promedio_retardo,':pblack');
+title("Gráfica del retardo promedio por grado con parametros W = "+W+" N = "+N+" \lambda = "+tasa_paquetes)
 xlabel('Grados')
-ylabel("Promedio del retardo por grado en la red con parametros W = "+W+" N = "+N+" \lambda = "+tasa_paquetes);
-xtips1 = c(1).XEndPoints;
-ytips1 = c(1).YEndPoints;
-labels1 = string(c(1).YData);
-text(xtips1,ytips1,labels1,'HorizontalAlignment','center',...
-    'VerticalAlignment','bottom')
+ylabel("Retardo promedio [s]");
+f.Position(3:4) = [1280 720];
 axis([0 8 0 1.1*max(promedio_retardo)])
+% DirectoryPath ='E:\Escuela\Octavo semestre\Redes inteligentes\proyecto final\graficas\6';
+% whereToStore=fullfile(DirectoryPath,['Retardo.png']);
+% saveas(gcf, whereToStore);
 
         
 
